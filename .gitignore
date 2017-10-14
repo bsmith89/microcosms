@@ -1,0 +1,17 @@
+# Always ignore
+.DS_Store
+*.swp
+.ipynb_checkpoints/
+*.pyc
+tags
+local.mk
+
+# Ignore these directories
+raw/
+res/
+.venv/
+.snakemake/
+
+# Only keep a couple of files from nb/profile_default
+!nb/profile_default/*config.py
+nb/profile_default/*
