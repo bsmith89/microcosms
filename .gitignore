@@ -9,6 +9,7 @@ local.mk
 # Ignore these directories
 raw/
 res/
+seq/
 .venv/
 .snakemake/
 

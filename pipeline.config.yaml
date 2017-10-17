@@ -1,0 +1,26 @@
+libraries:
+    cult-D0: BJS-cult-D0_S381
+    cult-D0-solids: BJS-cult-D0-solids_S384
+    cult-D1-1-6: BJS-cult-D1-1-6_S298
+    cult-D1-1-7: BJS-cult-D1-1-7_S322
+    cult-D1-2-6: BJS-cult-D1-2-6_S310
+    cult-D1-2-7: BJS-cult-D1-2-7_S334
+    cult-D6-1-6: BJS-cult-D6-1-6_S346
+    cult-D6-1-7: BJS-cult-D6-1-7_S382
+    cult-D6-2-6: BJS-cult-D6-2-6_S358
+    cult-D6-2-7: BJS-cult-D6-2-7_S299
+    cult-D6-3-6: BJS-cult-D6-3-6_S370
+    cult-D6-3-7: BJS-cult-D6-3-7_S311
+    spike-1-1: BJS-spike-1-1_S323
+    spike-1-2: BJS-spike-1-2_S371
+    spike-1-3: BJS-spike-1-3_S324
+    spike-2-1: BJS-spike-2-1_S335
+    spike-2-2: BJS-spike-2-2_S383
+    spike-2-3: BJS-spike-2-3_S336
+    spike-3-1: BJS-spike-3-1_S347
+    spike-3-2: BJS-spike-3-2_S300
+    spike-3-3: BJS-spike-3-3_S348
+    spike-4-1: BJS-spike-4-1_S359
+    spike-4-2: BJS-spike-4-2_S312
+    spike-4-3: BJS-spike-4-3_S360
+    spike-NC: BJS-spike-NC_S372
