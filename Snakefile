@@ -11,6 +11,8 @@ def mothur(command, **kwargs):
 def unlines(*lines):
     return '\n'.join(lines)
 
+just_symlink = 'ln -rs {input} {output}'
+
 # END Library }}}}}
 # Shortcuts {{{{{1
 
@@ -34,7 +36,6 @@ rule extract_peak_data:
         '{input.script} {input.rawdata} > {output}'
 
 # END HPLC }}}}}
-
 # RRS {{{{{1
 
 rule concat_fused_fn:
@@ -162,13 +163,198 @@ rule align_rrs:
         seqs = 'seq/{prefix}.fn',
         ref = 'ref/silva.nr.pcr_v4.afn'
     output:
-        align = 'seq/{prefix}.align.afn'
+        'seq/{prefix}.align.afn'
     shadow: 'full'
     threads: max_threads
     shell:
-        unlines(mothur('align.seqs', fasta='{input.seqs}', reference='{input.ref}', processors='{threads}'),
-                'mv seq/{wildcards.prefix}.align seq/{wildcards.prefix}.align.afn')
+        unlines(mothur('align.seqs',
+                       fasta='{input.seqs}',
+                       reference='{input.ref}',
+                       processors='{threads}'),
+                'mv seq/{wildcards.prefix}.align {output}')
 
+rule screen_aligned_seqs:
+    input:
+        seqs = 'seq/{prefix}.align.afn',
+        counts = 'res/{prefix}.count_table'
+    output:
+        seqs = 'seq/{prefix}.align.screen2.afn',
+        counts = 'res/{prefix}.align.screen2.count_table'
+    shadow: 'full'
+    shell:
+        unlines(mothur('screen.seqs',
+                       fasta='{input.seqs}',
+                       start=str(3100),
+                       count='{input.counts}',
+                       end=str(10600),
+                       maxhomop=str(8)),
+                'mv seq/{wildcards.prefix}.align.good.afn {output.seqs}',
+                'mv seq/{wildcards.prefix}.good.count_table {output.counts}'
+               )
+
+rule press_alignment:
+    input: 'seq/{prefix}.afn'
+    output: 'seq/{prefix}.press.afn'
+    shadow: 'full'
+    threads: max_threads
+    shell:
+        unlines(mothur('filter.seqs',
+                       fasta='{input}',
+                       vertical='T',
+                       trump='.',
+                       processors='{threads}'),
+                'mv seq/{wildcards.prefix}.filter.fasta {output}')
+
+# Changing the alignment of sequences (pressing or aligning) doesn't change the
+# counts, so we just symlink the file to keep naming conventions.
+rule symlink_identical_counts:
+    input: 'res/{prefix}.count_table'
+    wildcard_constraints:
+        last_action = '(press|align)'
+    output: 'res/{prefix}.{last_action}.count_table'
+    shell:
+        just_symlink
+
+rule screen_chimeras:
+    input:
+        seqs = 'seq/{prefix}.afn',
+        counts = 'res/{prefix}.count_table'
+    output:
+        seqs = 'seq/{prefix}.screen3.afn',
+        counts = 'res/{prefix}.screen3.count_table'
+    shadow: 'full'
+    threads: max_threads
+    shell:
+        unlines(mothur('chimera.uchime',
+                      fasta='{input.seqs}',
+                      count='{input.counts}',
+                      dereplicate='T',
+                      processors='{threads}'),
+                mothur('remove.seqs',
+                       fasta='{input.seqs}',
+                       accnos='seq/{wildcards.prefix}.denovo.uchime.accnos'),
+                'mv seq/{wildcards.prefix}.pick.afn {output.seqs}',
+                'mv seq/{wildcards.prefix}.denovo.uchime.pick.count_table {output.counts}'
+                )
+
+# fuse.screen1.uniq.align.screen2.press.uniq.screen3.screen4
+
+rule classify_seqs:
+    input:
+        seqs = 'seq/{prefix}.afn',
+        counts = 'res/{prefix}.count_table',
+        ref_seqs = 'ref/silva.nr.pcr_v4.fn',
+        ref_tax = 'ref/silva.nr.tax',
+    output:
+        'res/{prefix}.tax'
+    shadow: 'full'
+    threads: max_threads
+    shell:
+        unlines(mothur('classify.seqs',
+                       fasta='{input.seqs}',
+                       count='{input.counts}',
+                       reference='{input.ref_seqs}',
+                       taxonomy='{input.ref_tax}',
+                       method='wang',
+                       cutoff=str(0),
+                       processors='{threads}'),
+                'mv seq/{wildcards.prefix}.nr.wang.taxonomy {output}'
+               )
+
+rule screen_taxa:
+    input:
+        seqs = 'seq/{prefix}.afn',
+        counts = 'res/{prefix}.count_table',
+        tax = 'res/{prefix}.tax'
+    output:
+        seqs = 'seq/{prefix}.screen4.afn',
+        counts = 'res/{prefix}.screen4.count_table',
+        tax = 'res/{prefix}.screen4.tax'
+    shadow: 'full'
+    shell:
+        unlines(mothur('remove.lineage',
+                       fasta='{input.seqs}',
+                       count='{input.counts}',
+                       taxonomy='{input.tax}',
+                       taxon='Chloroplast-Mitochondria-Archaea-Eukaryota-Unknown-Sphingopyxis'),
+                'mv seq/{wildcards.prefix}.pick.afn {output.seqs}',
+                'mv res/{wildcards.prefix}.pick.count_table {output.counts}',
+                'mv res/{wildcards.prefix}.pick.tax {output.tax}'
+               )
+
+# Need to break ambiguity for producing *.screen4.tax, and screen_taxa
+# doesn't require re-classifying anything.
+ruleorder: screen_taxa > classify_seqs
+
+rule cluster_otus:
+    input:
+        seqs = 'seq/{prefix}.afn',
+        counts = 'res/{prefix}.count_table',
+        tax = 'res/{prefix}.tax'
+    output: 'res/{prefix}.clust.otus'
+    shadow: 'full'
+    threads: max_threads
+    shell:
+        unlines(
+        mothur('cluster.split',
+               fasta='{input.seqs}',
+               count='{input.counts}',
+               taxonomy='{input.tax}',
+               method='opti',
+               splitmethod='classify',
+               taxlevel=str(2),
+               cutoff='0.03',
+               processors='{threads}'),
+        'mv seq/{wildcards.prefix}.opti_mcc.unique_list.list {output}',
+               )
+
+rule make_shared:
+    input:
+        otus = 'res/{prefix}.clust.otus',
+        counts = 'res/{prefix}.count_table'
+    output:
+        'res/{prefix}.clust.shared'
+    shell:
+        unlines(
+        mothur('make.shared',
+        list='{input.otus}',
+        count='{input.counts}',
+        label='0.03'),
+        )
+
+rule classify_otus:
+    input:
+        otus = 'res/{prefix}.clust.otus',
+        counts = 'res/{prefix}.count_table',
+        tax = 'res/{prefix}.tax'
+    output:
+        'res/{prefix}.clust.tax'
+    shell:
+        unlines(
+        mothur('classify.otu',
+        list='{input.otus}',
+        count='{input.counts}',
+        taxonomy='{input.tax}',
+        label='0.03'),
+        'mv res/{wildcards.prefix}.clust.0.03.cons.taxonomy {output}'
+        )
+
+rule get_otu_reps:
+    input:
+        otus = 'res/{prefix}.clust.otus',
+        counts = 'res/{prefix}.count_table',
+        seqs = 'seq/{prefix}.afn'
+    output:
+        'seq/{prefix}.clust.reps.afn'
+    shell:
+        unlines(
+        mothur('get.oturep',
+        method='abundance',
+        list='{input.otus}',
+        count='{input.counts}',
+        fasta='{input.seqs}'),
+        r"sed 's:>[^ ]\+\s\+\(Otu[0-9]\+\)|.*$:>\1:' < res/{wildcards.prefix}.clust.0.03.rep.fasta > {output}"
+        )
 
 rule count_groups_adhoc:
     input:
