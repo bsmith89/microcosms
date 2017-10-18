@@ -18,7 +18,8 @@ just_symlink = 'ln -rs {input} {output}'
 
 rule all:
     input:
-        'res/2017-10-10.peak.tsv'
+        'res/2017-10-10.peak.tsv',
+        'res/rrs.fuse.screen1.uniq.align.screen2.press.screen3.screen4.clust.reps.blastn-sra.tsv'
 
 rule start_jupyter:
     shell: 'jupyter notebook --config=nb/jupyter_notebook_config.py --notebook-dir=nb/'
@@ -356,6 +357,8 @@ rule get_otu_reps:
         r"sed 's:>[^ ]\+\s\+\(Otu[0-9]\+\)|.*$:>\1:' < res/{wildcards.prefix}.clust.0.03.rep.fasta > {output}"
         )
 
+# END RRS }}}}}}
+# Misc. {{{{{1
 rule count_groups_adhoc:
     input:
         'res/{prefix}.groups'
@@ -367,17 +370,28 @@ rule count_groups_adhoc:
         " | awk -v OFS='\t' '{{print $2, $1}}'"
         " > {output}"
 
-rule blast_spike_seq:
+rule best_reference_hit_afn:
     input:
-        spike_seqs = 'meta/spike.fn',
-        reads = 'seq/rrs.fuse.fn'
+        subject = 'ref/{reference}.fn',
+        query = 'seq/{prefix}.fn'
     output:
-        'res/rrs.fuse.blastn-spike.tsv'
-    params:
-        ident_thresh = 95
+        'res/{prefix}.blastn-{reference}.tsv'
     shell:
-        'blastn -query {input.reads}'
-        ' -subject {input.spike_seqs}'
+        'blastn -query {input.query}'
+        ' -subject {input.subject}'
         ' -max_target_seqs 1'
-        ' -perc_identity {params.ident_thresh}'
         ' -outfmt 6 -out {output}'
+
+rule unalign_nucl_seqs:
+    input:
+        '{prefix}.afn'
+    output:
+        '{prefix}.fn'
+    run:
+        from Bio.SeqIO import parse, write
+
+        def unalign(rec):
+            rec.seq = rec.seq.ungap('-').ungap('.')
+            return rec
+
+        write((unalign(rec) for rec in parse(input[0], 'fasta')), output[0], 'fasta')
