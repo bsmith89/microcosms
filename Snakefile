@@ -56,7 +56,7 @@ rule make_groups_file:
     shell:
         '{input.script} {input.splits} > {output}'
 
-rule link_rrs_data:
+rule symlink_rrs_data:
     input:
         lambda wildcards: \
             ancient(expand('raw/rrs/{library_slug}_L001_R{read_number}_001.fastq.gz',
@@ -65,7 +65,7 @@ rule link_rrs_data:
     output:
         'seq/split/{library_id}.rrs.r{read_number}.fastq.gz'
     shell:
-        'ln -rs {input} {output}'
+        just_symlink
 
 rule fuse_paired_reads:
     input:
@@ -372,6 +372,11 @@ rule count_groups_adhoc:
         " | uniq -c"
         " | awk -v OFS='\t' '{{print $2, $1}}'"
         " > {output}"
+
+rule symlink_static_refs:
+    input: 'meta/{name}'
+    output: 'ref/{name}'
+    shell: just_symlink
 
 rule best_reference_hit_afn:
     input:
