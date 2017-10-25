@@ -315,6 +315,7 @@ rule make_shared:
         counts = 'res/{prefix}.count_table'
     output:
         'res/{prefix}.clust.shared'
+    shadow: 'full'
     shell:
         unlines(
         mothur('make.shared',
@@ -330,6 +331,7 @@ rule classify_otus:
         tax = 'res/{prefix}.tax'
     output:
         'res/{prefix}.clust.tax'
+    shadow: 'full'
     shell:
         unlines(
         mothur('classify.otu',
@@ -347,6 +349,7 @@ rule get_otu_reps:
         seqs = 'seq/{prefix}.afn'
     output:
         'seq/{prefix}.clust.reps.afn'
+    shadow: 'full'
     shell:
         unlines(
         mothur('get.oturep',
