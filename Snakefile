@@ -85,7 +85,7 @@ rule fuse_paired_reads:
                 mothur('make.contigs',
                        ffastq='{wildcards.library_id}.r1.fastq',
                        rfastq='{wildcards.library_id}.r2.fastq',
-                       trimoverlap='T'),
+                       trimoverlap='F'),
                 'mv {wildcards.library_id}.r1.trim.contigs.fasta seq/split/{wildcards.library_id}.rrs.fuse.fn'
                )
 
