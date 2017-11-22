@@ -24,6 +24,11 @@ rule all:
 rule start_jupyter:
     shell: 'jupyter notebook --config=nb/jupyter_notebook_config.py --notebook-dir=nb/'
 
+rule visualize_dag:
+    input: "{snakefile}"
+    output: "{snakefile}.dag.png"
+    shell: "snakemake --dag --snakefile {input} | dot -Tpng > {output}"
+
 # END Shortcuts }}}}}
 # HPLC {{{{{1
 
