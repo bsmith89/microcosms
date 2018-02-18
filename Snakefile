@@ -395,6 +395,18 @@ rule best_reference_hit_afn:
         ' -max_target_seqs 1'
         ' -outfmt 6 -out {output}'
 
+rule filt_spike_blastn_hits:
+    input:
+        'res/{prefix}.blastn-spike.tsv'
+    output:
+        'res/{prefix}.blastn-spike.filt.tsv'
+    params:
+        min_ident = 95,
+        min_hit_length = 250,
+        max_hit_length = 350
+    shell:
+        "awk '$3 > {params.min_ident} && $4 > {params.min_hit_length} && $4 < {params.max_hit_length}' {input} > {output}"
+
 rule unalign_nucl_seqs:
     input:
         '{prefix}.afn'
